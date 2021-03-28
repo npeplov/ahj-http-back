@@ -3,9 +3,38 @@ const Koa = require('koa');
 const koaBody = require('koa-body');
 const app = new Koa();
 
+class Ticket {
+  constructor(id, name, status, created) {
+    this.id = id // идентификатор (уникальный в пределах системы)
+    this.name = name // краткое описание
+    this.status = status // boolean - сделано или нет
+    this.created = created // дата создания (timestamp)
+  }
+}
+
+class TicketFull {
+  constructor(id, name, description, status, created) {
+    this.id = id // идентификатор (уникальный в пределах системы)
+    this.name = name // краткое описание
+    this.description = description // полное описание
+    this.status = status // boolean - сделано или нет
+    this.created = created // дата создания (timestamp)
+  }
+}
+
+const tickets = [
+  new Ticket(1, 'Install Win', false, new Date()),
+  new Ticket(2, 'Replace cartridge', true, new Date())
+];
+
+const ticketsFull = [
+  new TicketFull(1, 'Install Win', 'Install Windows 10, drivers for printer, MS Office, save documents and mediafiles', false, new Date()),
+  new TicketFull(2, 'Replace cartridge', 'Replace cartridge for printer Samsung in cabinet #404', true, new Date())
+];
+
 app.use(async (ctx, next) => {
   const origin = ctx.request.get('Origin');
-  console.log(origin);
+  console.log('origin:', origin);
   if (!origin) {
     return await next();
   }
@@ -40,20 +69,25 @@ app.use(koaBody({
 const subscriptions = new Map();
 app.use(async ctx => {
   const params = new URLSearchParams(ctx.request.querystring);
-  const obj = { name: params.get('name'), phone: params.get('phone') };
-  
-  const { name, phone } = obj;
-  // const { name, phone } = ctx.request.body;  // for POST
-  console.log(name, phone);
+  const obj = { method: params.get('method'), id: params.get('id') };
+  const { method} = obj;
+  const id = obj.id - 1;
 
-  if (subscriptions.has(phone)) {
-    ctx.response.status = 400
-    ctx.response.body = 'You already subscribed';
-    return;
-  }
+  console.log('method:', method, 'id:', id);
+  // console.log(ticketsFull[id]);
 
-  subscriptions.set(phone, name);
-  ctx.response.body = 'Ok';
+  switch (method) {
+    case 'allTickets':
+      ctx.response.body = tickets;
+      return;
+    case 'ticketById':
+      ctx.response.body = ticketsFull[id];
+      return;
+    default:
+        ctx.response.status = 404;
+        return;
+}
+  ctx.response.body = method;
 });
 
 app.use(async (ctx) => {
