@@ -22,19 +22,14 @@ class TicketFull {
   }
 }
 
-const tickets = [
-  new Ticket(1, 'Install Win', false, new Date()),
-  new Ticket(2, 'Replace cartridge', true, new Date())
+let ticketsFull = [
+  new TicketFull(0, 'Install Win', 'Install Windows 10, drivers for printer, MS Office, save documents and mediafiles', false, new Date().toString().slice(3,21)),
+  new TicketFull(1, 'Replace cartridge', 'Replace cartridge for printer Samsung in cabinet #404', true, new Date().toString().slice(3,21))
 ];
 
-const ticketsFull = [
-  new TicketFull(1, 'Install Win', 'Install Windows 10, drivers for printer, MS Office, save documents and mediafiles', false, new Date()),
-  new TicketFull(2, 'Replace cartridge', 'Replace cartridge for printer Samsung in cabinet #404', true, new Date())
-];
-
+// CORS
 app.use(async (ctx, next) => {
   const origin = ctx.request.get('Origin');
-  console.log('origin:', origin);
   if (!origin) {
     return await next();
   }
@@ -63,41 +58,69 @@ app.use(async (ctx, next) => {
 });
 
 app.use(koaBody({
+  text: true,
   urlencoded: true,
+  multipart: true,
+  json: true,
 }));
 
-const subscriptions = new Map();
+function tickets() {
+  const arr = [];
+  ticketsFull.forEach((elem) => {
+    arr.push(new Ticket(elem.id, elem.name, elem.status, elem.created));
+  });
+  return arr;
+}
+
+function findTicket(id) {
+  const result = ticketsFull.find((ticket) => ticket.id === id);
+  return result;
+}
+
 app.use(async ctx => {
   const params = new URLSearchParams(ctx.request.querystring);
   const obj = { method: params.get('method'), id: params.get('id') };
-  const { method} = obj;
-  const id = obj.id - 1;
+  const { method, id } = obj;
+  const { body } = ctx.request;
 
-  console.log('method:', method, 'id:', id);
-  // console.log(ticketsFull[id]);
-
+  console.log('method:', method, 'id:', id, 'ctx', body);
   switch (method) {
     case 'allTickets':
-      ctx.response.body = tickets;
+      ctx.response.body = tickets();
       return;
     case 'ticketById':
-      ctx.response.body = ticketsFull[id];
+      if (ctx.request.query.id) {
+        ctx.response.body = findTicket(+id);
+      }
+      return;
+    case 'createTicket':
+      const nextId = ticketsFull.length;
+      ticketsFull.push(new TicketFull(nextId, body.title, body.description, false, new Date().toString().slice(3,21)));
+      ctx.response.body = ticketsFull[nextId];
+      console.log(ticketsFull.length);
+      return;
+    case 'editTicket':
+      const index = body.id;
+      ticketsFull[index].name = body.title;
+      ticketsFull[index].description = body.description;
+      ctx.response.body = ticketsFull[index];
+      return;
+    case 'deleteTicket':
+      const ind = ticketsFull.findIndex((ticket) => +ticket.id === +id);
+      console.log('index', ind);
+      ctx.response.body = 'del';
+      ticketsFull.splice(ind, 1);
       return;
     default:
-        ctx.response.status = 404;
-        return;
-}
-  ctx.response.body = method;
+      ctx.response.status = 404;
+      return;
+  }
 });
 
 app.use(async (ctx) => {
-  // ctx.response.set({
-  //   'Access-Control-Allow-Origin': '*',
-  // });
   console.log('request.querystring:', ctx.request.querystring);
   console.log('request.body', ctx.request.body);
   ctx.response.status = 204;
-  // ctx.response.body = ctx.response.status;
 
   console.log(ctx.response);
 });
